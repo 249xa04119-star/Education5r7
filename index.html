@@ -1,156 +1,41 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>EduNova AI - Frontend Version</title>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-<style>
-body{
-  margin:0;
-  font-family:Segoe UI;
-  background:#0f2027;
-  color:white;
-}
-.container{
-  padding:20px;
-}
-.card{
-  background:#1f1f1f;
-  padding:15px;
-  margin:10px 0;
-  border-radius:8px;
-}
-button{
-  padding:8px 12px;
-  margin:5px 0;
-  background:#00ffff;
-  border:none;
-  cursor:pointer;
-  font-weight:bold;
-}
-input{
-  padding:6px;
-  margin:5px 0;
-}
-</style>
-</head>
-
-<body>
-
-<div class="container">
-
-<h1>EduNova AI</h1>
-
-<h2>Enter Student Scores</h2>
-
-<div class="card">
-Math: <input type="number" id="mathInput"><br>
-Science: <input type="number" id="scienceInput"><br>
-English: <input type="number" id="englishInput"><br>
-<button onclick="calculate()">Generate Report</button>
-</div>
-
-<h2>Student Dashboard</h2>
-
-<div class="card">Math Score: <span id="mathAvg">0</span></div>
-<div class="card">Science Score: <span id="scienceAvg">0</span></div>
-<div class="card">English Score: <span id="englishAvg">0</span></div>
-<div class="card">Overall: <span id="overallAvg">0</span></div>
-<div class="card">Risk Level: <span id="riskLevel">-</span></div>
-
-<canvas id="chart"></canvas>
-
-<h2>AI Tutor</h2>
-<input id="botInput" placeholder="Ask about math/science/english">
-<button onclick="askBot()">Ask</button>
-<p id="botReply"></p>
-
-<button onclick="generatePDF()">Download Report PDF</button>
-
-</div>
-
-<script>
-
-let chartInstance;
-
-/* ===== CALCULATE ===== */
-function calculate(){
-  let m = parseFloat(document.getElementById("mathInput").value) || 0;
-  let s = parseFloat(document.getElementById("scienceInput").value) || 0;
-  let e = parseFloat(document.getElementById("englishInput").value) || 0;
-
-  let overall = (m + s + e) / 3;
-
-  document.getElementById("mathAvg").innerText = m.toFixed(1);
-  document.getElementById("scienceAvg").innerText = s.toFixed(1);
-  document.getElementById("englishAvg").innerText = e.toFixed(1);
-  document.getElementById("overallAvg").innerText = overall.toFixed(1);
-  document.getElementById("riskLevel").innerText = detectRisk(overall);
-
-  renderChart([m, s, e]);
-}
-
-/* ===== RISK DETECTION ===== */
-function detectRisk(score){
-  if(score < 40) return "High Risk";
-  if(score < 70) return "Moderate Risk";
-  return "Low Risk";
-}
-
-/* ===== CHART ===== */
-function renderChart(data){
-  const ctx = document.getElementById("chart").getContext("2d");
-
-  if(chartInstance){
-    chartInstance.destroy();
-  }
-
-  chartInstance = new Chart(ctx,{
-    type:"bar",
-    data:{
-      labels:["Math","Science","English"],
-      datasets:[{
-        label:"Scores",
-        data:data
-      }]
-    }
-  });
-}
-
-/* ===== SIMPLE AI TUTOR ===== */
-function askBot(){
-  let q = document.getElementById("botInput").value.toLowerCase();
-  let reply = "Ask about math, science, or english.";
-
-  if(q.includes("math"))
-    reply = "Practice algebra, formulas, and daily problem solving.";
-  else if(q.includes("science"))
-    reply = "Understand concepts clearly and revise diagrams.";
-  else if(q.includes("english"))
-    reply = "Improve vocabulary, grammar, and reading habits.";
-
-  document.getElementById("botReply").innerText = reply;
-}
-
-/* ===== PDF ===== */
-function generatePDF(){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  doc.text("EduNova AI Performance Report", 20, 20);
-  doc.text("Math: " + document.getElementById("mathAvg").innerText, 20, 40);
-  doc.text("Science: " + document.getElementById("scienceAvg").innerText, 20, 50);
-  doc.text("English: " + document.getElementById("englishAvg").innerText, 20, 60);
-  doc.text("Overall: " + document.getElementById("overallAvg").innerText, 20, 70);
-  doc.text("Risk: " + document.getElementById("riskLevel").innerText, 20, 80);
-
-  doc.save("EduNova_Report.pdf");
-}
-
-</script>
-
-</body>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LearnSmart AI - AI Adaptive Learning & Progress Intelligence Platform</title>
+    <meta name="description" content="AI-powered adaptive learning platform for Class 1-12 students with personalized education, concept gap detection, simplified explanations, previous year question practice, gamified learning, and visual progress tracking for academic excellence." />
+    <meta name="keywords" content="AI learning platform, adaptive education, student progress tracking, personalized learning, concept gap detection, Class 1-12 education" />
+    <link rel="canonical" href="https://learnsmart-ai.com" />
+    <meta name="last-modified" content="2025-01-01" />
+    
+    <!-- Social Media Tags -->
+    <meta property="og:title" content="LearnSmart AI - AI Adaptive Learning Platform" />
+    <meta property="og:description" content="Transform learning with AI-powered personalized education for Class 1-12 students" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://learnsmart-ai.com" />
+    
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LearnSmart AI - AI Adaptive Learning Platform" />
+    <meta name="twitter:description" content="Transform learning with AI-powered personalized education for Class 1-12 students" />
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    
+    <!-- Remix Icon -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet" />
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+        <meta name="readdy-project-version" content="9fd27fb4ba7d8caedc9bcc739c9e0b02:da0fe4121a25e2fbf70bff1604bb89c3:fd36168d9538cf5c70497583ee69955fc2c6748c582e4fcc40454e3644fab32a837f21537f93b6f498d35f64d0a7cf26ad00c5ef87b93af7a9207c06acf066bd">
+          <script type="module" crossorigin src="/preview/842924bd-bea8-491c-b8ff-fd3e629f1eac/6685664/assets/index-DhAYWCgm.js"></script>
+          <link rel="stylesheet" crossorigin href="/preview/842924bd-bea8-491c-b8ff-fd3e629f1eac/6685664/assets/index-B8OYau7Y.css">
+        </head>
+  <body>
+    <div id="root"></div>
+  </body>
 </html>
