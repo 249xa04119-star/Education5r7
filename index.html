@@ -2,117 +2,87 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>EduNova AI</title>
+<title>EduNova AI - Frontend Version</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { 
-  getAuth, createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, onAuthStateChanged, signOut 
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-import { 
-  getFirestore, doc, setDoc, getDoc, updateDoc, 
-  collection, getDocs 
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-/* 🔥 REPLACE WITH YOUR FIREBASE CONFIG */
-const firebaseConfig = {
-  apiKey: "PASTE_KEY",
-  authDomain: "PASTE_DOMAIN",
-  projectId: "PASTE_PROJECT_ID",
-  storageBucket: "PASTE_BUCKET",
-  messagingSenderId: "PASTE_ID",
-  appId: "PASTE_APP_ID"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-/* ================= AUTH ================= */
-
-window.registerUser = async () => {
-  try {
-    const emailVal = document.getElementById("email").value;
-    const passVal = document.getElementById("password").value;
-    const roleVal = document.getElementById("role").value;
-
-    const userCred = await createUserWithEmailAndPassword(auth, emailVal, passVal);
-
-    await setDoc(doc(db, "users", userCred.user.uid), {
-      email: emailVal,
-      role: roleVal,
-      subjects: { math: [], science: [], english: [] }
-    });
-
-    alert("Registration successful!");
-  } catch (error) {
-    alert(error.message);
-  }
-};
-
-window.loginUser = async () => {
-  try {
-    const emailVal = document.getElementById("email").value;
-    const passVal = document.getElementById("password").value;
-    await signInWithEmailAndPassword(auth, emailVal, passVal);
-  } catch (error) {
-    alert(error.message);
-  }
-};
-
-window.logoutUser = async () => {
-  await signOut(auth);
-};
-
-/* ================= AUTH STATE ================= */
-
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    document.getElementById("loginPage").style.display = "block";
-    document.getElementById("appPage").style.display = "none";
-    return;
-  }
-
-  document.getElementById("loginPage").style.display = "none";
-  document.getElementById("appPage").style.display = "flex";
-
-  const snap = await getDoc(doc(db, "users", user.uid));
-  if (!snap.exists()) return;
-
-  const data = snap.data();
-
-  document.getElementById("currentUserEmail").innerText = data.email;
-  document.getElementById("currentUserRole").innerText = data.role;
-
-  if (data.role === "student") loadStudent(user.uid, data);
-  if (data.role === "teacher") loadTeacher();
-  if (data.role === "admin") loadAdmin();
-});
-
-/* ================= STUDENT ================= */
-
-function avg(arr) {
-  return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+<style>
+body{
+  margin:0;
+  font-family:Segoe UI;
+  background:#0f2027;
+  color:white;
 }
-
-function detectRisk(o) {
-  if (o < 40) return "High Risk";
-  if (o < 70) return "Moderate Risk";
-  return "Low Risk";
+.container{
+  padding:20px;
 }
+.card{
+  background:#1f1f1f;
+  padding:15px;
+  margin:10px 0;
+  border-radius:8px;
+}
+button{
+  padding:8px 12px;
+  margin:5px 0;
+  background:#00ffff;
+  border:none;
+  cursor:pointer;
+  font-weight:bold;
+}
+input{
+  padding:6px;
+  margin:5px 0;
+}
+</style>
+</head>
 
-function loadStudent(uid, data) {
-  showPanel("student");
+<body>
 
-  const m = avg(data.subjects.math);
-  const s = avg(data.subjects.science);
-  const e = avg(data.subjects.english);
-  const overall = (m + s + e) / 3;
+<div class="container">
+
+<h1>EduNova AI</h1>
+
+<h2>Enter Student Scores</h2>
+
+<div class="card">
+Math: <input type="number" id="mathInput"><br>
+Science: <input type="number" id="scienceInput"><br>
+English: <input type="number" id="englishInput"><br>
+<button onclick="calculate()">Generate Report</button>
+</div>
+
+<h2>Student Dashboard</h2>
+
+<div class="card">Math Score: <span id="mathAvg">0</span></div>
+<div class="card">Science Score: <span id="scienceAvg">0</span></div>
+<div class="card">English Score: <span id="englishAvg">0</span></div>
+<div class="card">Overall: <span id="overallAvg">0</span></div>
+<div class="card">Risk Level: <span id="riskLevel">-</span></div>
+
+<canvas id="chart"></canvas>
+
+<h2>AI Tutor</h2>
+<input id="botInput" placeholder="Ask about math/science/english">
+<button onclick="askBot()">Ask</button>
+<p id="botReply"></p>
+
+<button onclick="generatePDF()">Download Report PDF</button>
+
+</div>
+
+<script>
+
+let chartInstance;
+
+/* ===== CALCULATE ===== */
+function calculate(){
+  let m = parseFloat(document.getElementById("mathInput").value) || 0;
+  let s = parseFloat(document.getElementById("scienceInput").value) || 0;
+  let e = parseFloat(document.getElementById("englishInput").value) || 0;
+
+  let overall = (m + s + e) / 3;
 
   document.getElementById("mathAvg").innerText = m.toFixed(1);
   document.getElementById("scienceAvg").innerText = s.toFixed(1);
@@ -123,174 +93,64 @@ function loadStudent(uid, data) {
   renderChart([m, s, e]);
 }
 
-/* ================= TEACHER ================= */
-
-async function loadTeacher() {
-  showPanel("teacher");
-
-  const snap = await getDocs(collection(db, "users"));
-  const list = document.getElementById("teacherList");
-  list.innerHTML = "";
-
-  snap.forEach(docSnap => {
-    const d = docSnap.data();
-    if (d.role === "student") {
-      list.innerHTML += `
-        <div class="card">
-          ${d.email}<br>
-          <select id="sub_${docSnap.id}">
-            <option value="math">Math</option>
-            <option value="science">Science</option>
-            <option value="english">English</option>
-          </select>
-          <input type="number" id="score_${docSnap.id}" placeholder="Score">
-          <button onclick="addScore('${docSnap.id}')">Add</button>
-        </div>`;
-    }
-  });
+/* ===== RISK DETECTION ===== */
+function detectRisk(score){
+  if(score < 40) return "High Risk";
+  if(score < 70) return "Moderate Risk";
+  return "Low Risk";
 }
 
-window.addScore = async (uid) => {
-  const sub = document.getElementById("sub_" + uid).value;
-  const val = parseInt(document.getElementById("score_" + uid).value);
-
-  const snap = await getDoc(doc(db, "users", uid));
-  const data = snap.data();
-
-  data.subjects[sub].push(val);
-
-  await updateDoc(doc(db, "users", uid), { subjects: data.subjects });
-  alert("Score Added");
-};
-
-/* ================= ADMIN ================= */
-
-async function loadAdmin() {
-  showPanel("admin");
-
-  const snap = await getDocs(collection(db, "users"));
-  const board = document.getElementById("leaderboard");
-  board.innerHTML = "";
-
-  let arr = [];
-
-  snap.forEach(docSnap => {
-    const d = docSnap.data();
-    if (d.role === "student") {
-      const m = avg(d.subjects.math);
-      const s = avg(d.subjects.science);
-      const e = avg(d.subjects.english);
-      const o = (m + s + e) / 3;
-      arr.push({ email: d.email, score: o });
-    }
-  });
-
-  arr.sort((a, b) => b.score - a.score);
-
-  arr.forEach((x, i) => {
-    board.innerHTML += `<div>${i + 1}. ${x.email} - ${x.score.toFixed(1)}</div>`;
-  });
-}
-
-/* ================= UTIL ================= */
-
-function showPanel(type) {
-  document.getElementById("studentPanel").style.display = "none";
-  document.getElementById("teacherPanel").style.display = "none";
-  document.getElementById("adminPanel").style.display = "none";
-
-  if (type === "student") document.getElementById("studentPanel").style.display = "block";
-  if (type === "teacher") document.getElementById("teacherPanel").style.display = "block";
-  if (type === "admin") document.getElementById("adminPanel").style.display = "block";
-}
-
-/* ================= CHART ================= */
-
-let chartInstance;
-function renderChart(data) {
+/* ===== CHART ===== */
+function renderChart(data){
   const ctx = document.getElementById("chart").getContext("2d");
-  if (chartInstance) chartInstance.destroy();
 
-  chartInstance = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: ["Math", "Science", "English"],
-      datasets: [{ label: "Average Score", data: data }]
+  if(chartInstance){
+    chartInstance.destroy();
+  }
+
+  chartInstance = new Chart(ctx,{
+    type:"bar",
+    data:{
+      labels:["Math","Science","English"],
+      datasets:[{
+        label:"Scores",
+        data:data
+      }]
     }
   });
 }
 
-/* ================= PDF ================= */
+/* ===== SIMPLE AI TUTOR ===== */
+function askBot(){
+  let q = document.getElementById("botInput").value.toLowerCase();
+  let reply = "Ask about math, science, or english.";
 
-window.generatePDF = () => {
+  if(q.includes("math"))
+    reply = "Practice algebra, formulas, and daily problem solving.";
+  else if(q.includes("science"))
+    reply = "Understand concepts clearly and revise diagrams.";
+  else if(q.includes("english"))
+    reply = "Improve vocabulary, grammar, and reading habits.";
+
+  document.getElementById("botReply").innerText = reply;
+}
+
+/* ===== PDF ===== */
+function generatePDF(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
   doc.text("EduNova AI Performance Report", 20, 20);
-  doc.text("Overall: " + document.getElementById("overallAvg").innerText, 20, 40);
-  doc.text("Risk: " + document.getElementById("riskLevel").innerText, 20, 50);
-  doc.save("report.pdf");
-};
+  doc.text("Math: " + document.getElementById("mathAvg").innerText, 20, 40);
+  doc.text("Science: " + document.getElementById("scienceAvg").innerText, 20, 50);
+  doc.text("English: " + document.getElementById("englishAvg").innerText, 20, 60);
+  doc.text("Overall: " + document.getElementById("overallAvg").innerText, 20, 70);
+  doc.text("Risk: " + document.getElementById("riskLevel").innerText, 20, 80);
+
+  doc.save("EduNova_Report.pdf");
+}
+
 </script>
-
-<style>
-body { margin:0; font-family:Segoe UI; background:#0f2027; color:white; }
-#appPage { display:none; height:100vh; }
-.sidebar { width:220px; background:#111; padding:20px; }
-.main { flex:1; padding:20px; }
-.card { background:#1f1f1f; padding:10px; margin:10px 0; border-radius:8px; }
-button { padding:6px; margin:5px; background:#00ffff; border:none; cursor:pointer; }
-input, select { padding:6px; margin:5px; }
-</style>
-</head>
-
-<body>
-
-<div id="loginPage" style="text-align:center;margin-top:100px;">
-<h2>EduNova AI</h2>
-<input id="email" placeholder="Email"><br>
-<input id="password" type="password" placeholder="Password"><br>
-<select id="role">
-<option value="student">Student</option>
-<option value="teacher">Teacher</option>
-<option value="admin">Admin</option>
-</select><br>
-<button onclick="registerUser()">Register</button>
-<button onclick="loginUser()">Login</button>
-</div>
-
-<div id="appPage">
-<div class="sidebar">
-<p id="currentUserEmail"></p>
-<p>Role: <span id="currentUserRole"></span></p>
-<button onclick="logoutUser()">Logout</button>
-</div>
-
-<div class="main">
-
-<div id="studentPanel">
-<h2>Student Dashboard</h2>
-<div class="card">Math: <span id="mathAvg"></span></div>
-<div class="card">Science: <span id="scienceAvg"></span></div>
-<div class="card">English: <span id="englishAvg"></span></div>
-<div class="card">Overall: <span id="overallAvg"></span></div>
-<div class="card">Risk: <span id="riskLevel"></span></div>
-<canvas id="chart"></canvas>
-<button onclick="generatePDF()">Download Report</button>
-</div>
-
-<div id="teacherPanel" style="display:none;">
-<h2>Teacher Dashboard</h2>
-<div id="teacherList"></div>
-</div>
-
-<div id="adminPanel" style="display:none;">
-<h2>Admin Leaderboard</h2>
-<div id="leaderboard"></div>
-</div>
-
-</div>
-</div>
 
 </body>
 </html>
