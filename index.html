@@ -2,26 +2,31 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>EduNova AI - Investor Edition</title>
+<title>EduNova AI</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } 
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, getDocs } 
-from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { 
+  getAuth, createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, onAuthStateChanged, signOut 
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+import { 
+  getFirestore, doc, setDoc, getDoc, updateDoc, 
+  collection, getDocs 
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /* 🔥 REPLACE WITH YOUR FIREBASE CONFIG */
 const firebaseConfig = {
-apiKey: "YOUR_API_KEY",
-authDomain: "YOUR_DOMAIN",
-projectId: "YOUR_PROJECT_ID",
-storageBucket: "YOUR_BUCKET",
-messagingSenderId: "YOUR_ID",
-appId: "YOUR_APP_ID"
+  apiKey: "PASTE_KEY",
+  authDomain: "PASTE_DOMAIN",
+  projectId: "PASTE_PROJECT_ID",
+  storageBucket: "PASTE_BUCKET",
+  messagingSenderId: "PASTE_ID",
+  appId: "PASTE_APP_ID"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -30,207 +35,217 @@ const db = getFirestore(app);
 
 /* ================= AUTH ================= */
 
-window.registerUser = async function(){
-let user = await createUserWithEmailAndPassword(auth,email.value,password.value);
-await setDoc(doc(db,"users",user.user.uid),{
-email:email.value,
-role:role.value,
-subjects:{
-math:[],
-science:[],
-english:[]
-}
-});
-alert("Registered!");
-}
+window.registerUser = async () => {
+  try {
+    const emailVal = document.getElementById("email").value;
+    const passVal = document.getElementById("password").value;
+    const roleVal = document.getElementById("role").value;
 
-window.loginUser = async function(){
-await signInWithEmailAndPassword(auth,email.value,password.value);
-}
+    const userCred = await createUserWithEmailAndPassword(auth, emailVal, passVal);
 
-window.logoutUser = async function(){
-await signOut(auth);
-location.reload();
-}
+    await setDoc(doc(db, "users", userCred.user.uid), {
+      email: emailVal,
+      role: roleVal,
+      subjects: { math: [], science: [], english: [] }
+    });
 
-onAuthStateChanged(auth, async (user)=>{
-if(user){
-loginPage.style.display="none";
-appPage.style.display="flex";
-let snap = await getDoc(doc(db,"users",user.uid));
-let data = snap.data();
-currentUserRole.innerText=data.role;
-currentUserEmail.innerText=data.email;
+    alert("Registration successful!");
+  } catch (error) {
+    alert(error.message);
+  }
+};
 
-if(data.role==="student") loadStudent(user.uid,data);
-if(data.role==="teacher") loadTeacher();
-if(data.role==="admin") loadAdmin();
-}
+window.loginUser = async () => {
+  try {
+    const emailVal = document.getElementById("email").value;
+    const passVal = document.getElementById("password").value;
+    await signInWithEmailAndPassword(auth, emailVal, passVal);
+  } catch (error) {
+    alert(error.message);
+  }
+};
+
+window.logoutUser = async () => {
+  await signOut(auth);
+};
+
+/* ================= AUTH STATE ================= */
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    document.getElementById("loginPage").style.display = "block";
+    document.getElementById("appPage").style.display = "none";
+    return;
+  }
+
+  document.getElementById("loginPage").style.display = "none";
+  document.getElementById("appPage").style.display = "flex";
+
+  const snap = await getDoc(doc(db, "users", user.uid));
+  if (!snap.exists()) return;
+
+  const data = snap.data();
+
+  document.getElementById("currentUserEmail").innerText = data.email;
+  document.getElementById("currentUserRole").innerText = data.role;
+
+  if (data.role === "student") loadStudent(user.uid, data);
+  if (data.role === "teacher") loadTeacher();
+  if (data.role === "admin") loadAdmin();
 });
 
 /* ================= STUDENT ================= */
 
-async function loadStudent(uid,data){
-studentPanel.style.display="block";
-teacherPanel.style.display="none";
-adminPanel.style.display="none";
-
-updateStudentView(data);
+function avg(arr) {
+  return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 }
 
-function updateStudentView(data){
-let m=avg(data.subjects.math);
-let s=avg(data.subjects.science);
-let e=avg(data.subjects.english);
-
-mathAvg.innerText=m.toFixed(1);
-scienceAvg.innerText=s.toFixed(1);
-englishAvg.innerText=e.toFixed(1);
-
-let overall=(m+s+e)/3;
-overallAvg.innerText=overall.toFixed(1);
-
-riskLevel.innerText=detectRisk(m,s,e,overall);
-
-renderChart([m,s,e]);
+function detectRisk(o) {
+  if (o < 40) return "High Risk";
+  if (o < 70) return "Moderate Risk";
+  return "Low Risk";
 }
 
-function avg(arr){ return arr.length? arr.reduce((a,b)=>a+b,0)/arr.length:0;}
+function loadStudent(uid, data) {
+  showPanel("student");
 
-function detectRisk(m,s,e,o){
-if(o<40 || m<35 || s<35 || e<35) return "High Risk";
-if(o<70) return "Moderate Risk";
-return "Low Risk";
+  const m = avg(data.subjects.math);
+  const s = avg(data.subjects.science);
+  const e = avg(data.subjects.english);
+  const overall = (m + s + e) / 3;
+
+  document.getElementById("mathAvg").innerText = m.toFixed(1);
+  document.getElementById("scienceAvg").innerText = s.toFixed(1);
+  document.getElementById("englishAvg").innerText = e.toFixed(1);
+  document.getElementById("overallAvg").innerText = overall.toFixed(1);
+  document.getElementById("riskLevel").innerText = detectRisk(overall);
+
+  renderChart([m, s, e]);
 }
 
 /* ================= TEACHER ================= */
 
-async function loadTeacher(){
-studentPanel.style.display="none";
-teacherPanel.style.display="block";
-adminPanel.style.display="none";
+async function loadTeacher() {
+  showPanel("teacher");
 
-let snap=await getDocs(collection(db,"users"));
-teacherList.innerHTML="";
-snap.forEach(docSnap=>{
-let d=docSnap.data();
-if(d.role==="student"){
-teacherList.innerHTML+=`
-<div class="card">
-${d.email}<br>
-<select id="sub_${docSnap.id}">
-<option value="math">Math</option>
-<option value="science">Science</option>
-<option value="english">English</option>
-</select>
-<input type="number" id="score_${docSnap.id}" placeholder="Score">
-<button onclick="addScore('${docSnap.id}')">Add</button>
-</div>`;
+  const snap = await getDocs(collection(db, "users"));
+  const list = document.getElementById("teacherList");
+  list.innerHTML = "";
+
+  snap.forEach(docSnap => {
+    const d = docSnap.data();
+    if (d.role === "student") {
+      list.innerHTML += `
+        <div class="card">
+          ${d.email}<br>
+          <select id="sub_${docSnap.id}">
+            <option value="math">Math</option>
+            <option value="science">Science</option>
+            <option value="english">English</option>
+          </select>
+          <input type="number" id="score_${docSnap.id}" placeholder="Score">
+          <button onclick="addScore('${docSnap.id}')">Add</button>
+        </div>`;
+    }
+  });
 }
-});
-}
 
-window.addScore = async function(uid){
-let sub=document.getElementById("sub_"+uid).value;
-let val=parseInt(document.getElementById("score_"+uid).value);
+window.addScore = async (uid) => {
+  const sub = document.getElementById("sub_" + uid).value;
+  const val = parseInt(document.getElementById("score_" + uid).value);
 
-let snap=await getDoc(doc(db,"users",uid));
-let data=snap.data();
-data.subjects[sub].push(val);
+  const snap = await getDoc(doc(db, "users", uid));
+  const data = snap.data();
 
-await updateDoc(doc(db,"users",uid),{subjects:data.subjects});
-alert("Score Added");
-}
+  data.subjects[sub].push(val);
+
+  await updateDoc(doc(db, "users", uid), { subjects: data.subjects });
+  alert("Score Added");
+};
 
 /* ================= ADMIN ================= */
 
-async function loadAdmin(){
-studentPanel.style.display="none";
-teacherPanel.style.display="none";
-adminPanel.style.display="block";
+async function loadAdmin() {
+  showPanel("admin");
 
-let snap=await getDocs(collection(db,"users"));
-leaderboard.innerHTML="";
-let arr=[];
+  const snap = await getDocs(collection(db, "users"));
+  const board = document.getElementById("leaderboard");
+  board.innerHTML = "";
 
-snap.forEach(docSnap=>{
-let d=docSnap.data();
-if(d.role==="student"){
-let m=avg(d.subjects.math);
-let s=avg(d.subjects.science);
-let e=avg(d.subjects.english);
-let o=(m+s+e)/3;
-arr.push({email:d.email,score:o});
+  let arr = [];
+
+  snap.forEach(docSnap => {
+    const d = docSnap.data();
+    if (d.role === "student") {
+      const m = avg(d.subjects.math);
+      const s = avg(d.subjects.science);
+      const e = avg(d.subjects.english);
+      const o = (m + s + e) / 3;
+      arr.push({ email: d.email, score: o });
+    }
+  });
+
+  arr.sort((a, b) => b.score - a.score);
+
+  arr.forEach((x, i) => {
+    board.innerHTML += `<div>${i + 1}. ${x.email} - ${x.score.toFixed(1)}</div>`;
+  });
 }
-});
 
-arr.sort((a,b)=>b.score-a.score);
-arr.forEach((x,i)=>{
-leaderboard.innerHTML+=`<div>${i+1}. ${x.email} - ${x.score.toFixed(1)}</div>`;
-});
+/* ================= UTIL ================= */
+
+function showPanel(type) {
+  document.getElementById("studentPanel").style.display = "none";
+  document.getElementById("teacherPanel").style.display = "none";
+  document.getElementById("adminPanel").style.display = "none";
+
+  if (type === "student") document.getElementById("studentPanel").style.display = "block";
+  if (type === "teacher") document.getElementById("teacherPanel").style.display = "block";
+  if (type === "admin") document.getElementById("adminPanel").style.display = "block";
 }
 
 /* ================= CHART ================= */
 
-function renderChart(data){
-let ctx=document.getElementById("chart").getContext("2d");
-new Chart(ctx,{
-type:"bar",
-data:{
-labels:["Math","Science","English"],
-datasets:[{label:"Average Score",data:data}]
-}
-});
-}
+let chartInstance;
+function renderChart(data) {
+  const ctx = document.getElementById("chart").getContext("2d");
+  if (chartInstance) chartInstance.destroy();
 
-/* ================= CHATBOT ================= */
-
-window.askBot=function(){
-let q=botInput.value.toLowerCase();
-let reply="I am not sure. Try asking subject related questions.";
-
-if(q.includes("math")) reply="Practice algebra and formulas daily.";
-if(q.includes("science")) reply="Understand concepts and diagrams.";
-if(q.includes("english")) reply="Improve vocabulary and grammar.";
-
-botReply.innerText=reply;
+  chartInstance = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: ["Math", "Science", "English"],
+      datasets: [{ label: "Average Score", data: data }]
+    }
+  });
 }
 
 /* ================= PDF ================= */
 
-window.generatePDF=function(){
-const { jsPDF } = window.jspdf;
-let doc=new jsPDF();
-doc.text("EduNova AI Performance Report",20,20);
-doc.text("Email: "+currentUserEmail.innerText,20,40);
-doc.text("Overall: "+overallAvg.innerText,20,50);
-doc.text("Risk: "+riskLevel.innerText,20,60);
-doc.save("report.pdf");
-}
+window.generatePDF = () => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
 
+  doc.text("EduNova AI Performance Report", 20, 20);
+  doc.text("Overall: " + document.getElementById("overallAvg").innerText, 20, 40);
+  doc.text("Risk: " + document.getElementById("riskLevel").innerText, 20, 50);
+  doc.save("report.pdf");
+};
 </script>
 
 <style>
-body{margin:0;font-family:Segoe UI;background:#0f2027;color:white;}
-#appPage{display:none;height:100vh;}
-.sidebar{
-width:220px;background:#111;padding:20px;
-}
-.sidebar h3{color:#00ffff;}
-.main{flex:1;padding:20px;}
-.card{
-background:#1f1f1f;padding:10px;margin:10px 0;border-radius:8px;
-}
-input,select,button{
-padding:6px;margin:5px;border-radius:5px;border:none;
-}
-button{background:#00ffff;font-weight:bold;cursor:pointer;}
+body { margin:0; font-family:Segoe UI; background:#0f2027; color:white; }
+#appPage { display:none; height:100vh; }
+.sidebar { width:220px; background:#111; padding:20px; }
+.main { flex:1; padding:20px; }
+.card { background:#1f1f1f; padding:10px; margin:10px 0; border-radius:8px; }
+button { padding:6px; margin:5px; background:#00ffff; border:none; cursor:pointer; }
+input, select { padding:6px; margin:5px; }
 </style>
 </head>
 
 <body>
 
-<!-- LOGIN -->
 <div id="loginPage" style="text-align:center;margin-top:100px;">
 <h2>EduNova AI</h2>
 <input id="email" placeholder="Email"><br>
@@ -244,10 +259,8 @@ button{background:#00ffff;font-weight:bold;cursor:pointer;}
 <button onclick="loginUser()">Login</button>
 </div>
 
-<!-- APP -->
 <div id="appPage">
 <div class="sidebar">
-<h3>EduNova AI</h3>
 <p id="currentUserEmail"></p>
 <p>Role: <span id="currentUserRole"></span></p>
 <button onclick="logoutUser()">Logout</button>
@@ -255,31 +268,22 @@ button{background:#00ffff;font-weight:bold;cursor:pointer;}
 
 <div class="main">
 
-<!-- STUDENT -->
 <div id="studentPanel">
 <h2>Student Dashboard</h2>
-<div class="card">Math Avg: <span id="mathAvg"></span></div>
-<div class="card">Science Avg: <span id="scienceAvg"></span></div>
-<div class="card">English Avg: <span id="englishAvg"></span></div>
+<div class="card">Math: <span id="mathAvg"></span></div>
+<div class="card">Science: <span id="scienceAvg"></span></div>
+<div class="card">English: <span id="englishAvg"></span></div>
 <div class="card">Overall: <span id="overallAvg"></span></div>
 <div class="card">Risk: <span id="riskLevel"></span></div>
 <canvas id="chart"></canvas>
-
-<h3>AI Tutor</h3>
-<input id="botInput" placeholder="Ask something...">
-<button onclick="askBot()">Ask</button>
-<p id="botReply"></p>
-
-<button onclick="generatePDF()">Download Report PDF</button>
+<button onclick="generatePDF()">Download Report</button>
 </div>
 
-<!-- TEACHER -->
 <div id="teacherPanel" style="display:none;">
 <h2>Teacher Dashboard</h2>
 <div id="teacherList"></div>
 </div>
 
-<!-- ADMIN -->
 <div id="adminPanel" style="display:none;">
 <h2>Admin Leaderboard</h2>
 <div id="leaderboard"></div>
